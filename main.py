@@ -159,6 +159,54 @@ async def cmd_like(message: types.Message):
     except Exception:
         pass
 
+from get_info import get_account_info
+
+@dp.message(Command("info"))
+async def cmd_info(message: types.Message):
+    args = message.text.split()
+    if len(args) < 2:
+        await message.reply("❌ **Invalid Syntax.** Usage: `/info <target_uid>`")
+        return
+        
+    target_uid = args[1].strip()
+    
+    if not ACCOUNT_POOL:
+        await message.reply("❌ **No active bots available.** You need at least 1 working guest account in `accounts.json` to fetch player info.")
+        return
+        
+    status_msg = await message.reply(f"🔍 Fetching profile data for UID `{target_uid}`...")
+    
+    # Try using the first account in the pool
+    guest = ACCOUNT_POOL[0]
+    
+    try:
+        data = await get_account_info(target_uid, guest["uid"], guest["password"])
+        
+        # Extract basic info
+        basic = data.get("basicInfo", {})
+        nickname = basic.get("nickname", "Unknown")
+        level = basic.get("level", 0)
+        likes = basic.get("liked", 0)
+        region = basic.get("region", "Unknown")
+        create_at = basic.get("createAt", "Unknown")
+        
+        # Format the response
+        report = (
+            f"👤 **Player Profile: {nickname}**\n\n"
+            f"🆔 UID: `{target_uid}`\n"
+            f"🌍 Region: {region}\n"
+            f"⭐ Level: {level}\n"
+            f"❤️ Likes: {likes}\n"
+        )
+        await status_msg.edit_text(report)
+        
+    except Exception as e:
+        err_str = str(e)
+        if "queueInfo" in err_str or "blacklist" in err_str:
+            await status_msg.edit_text(f"❌ **Bot Account Banned.** The bot account used to fetch the profile is banned. Please add fresh accounts to `accounts.json`.")
+        else:
+            await status_msg.edit_text(f"⚠️ **Error fetching profile:** {err_str[:100]}")
+
 @dp.message(Command("check"))
 async def cmd_check(message: types.Message):
     args = message.text.split()
