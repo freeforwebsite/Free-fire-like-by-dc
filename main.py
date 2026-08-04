@@ -159,6 +159,40 @@ async def cmd_like(message: types.Message):
     except Exception:
         pass
 
+@dp.message(Command("check"))
+async def cmd_check(message: types.Message):
+    if not ACCOUNT_POOL:
+        await message.reply("❌ **No accounts found in database!**")
+        return
+        
+    await message.reply("🔍 **Scanning first 5 accounts for ban status...**")
+    
+    results = []
+    accounts_to_test = ACCOUNT_POOL[:5]
+    
+    for idx, acc in enumerate(accounts_to_test, 1):
+        uid = acc["uid"]
+        pwd = acc["password"]
+        
+        try:
+            # We call create_jwt. If it succeeds, the account is valid.
+            # If it fails, we catch the exception and look for queueInfo
+            token, lock_region, server_url = await create_jwt(uid, pwd)
+            results.append(f"✅ {idx}. `{uid}`: Working!")
+        except Exception as e:
+            err_str = str(e)
+            if "queueInfo" in err_str:
+                results.append(f"❌ {idx}. `{uid}`: **BANNED** (Queue/Wait detected)")
+            elif "blacklist" in err_str:
+                results.append(f"❌ {idx}. `{uid}`: **BANNED** (Blacklisted)")
+            else:
+                results.append(f"⚠️ {idx}. `{uid}`: Error - {err_str[:50]}")
+                
+        await asyncio.sleep(0.5)
+        
+    final_report = "📊 **Account Health Check (Top 5):**\n\n" + "\n".join(results)
+    await message.reply(final_report)
+
 # --- CONCURRENT THREAD CONTROLLER ---
 async def run_bot_polling():
     if bot:
