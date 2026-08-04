@@ -125,24 +125,24 @@ async def cmd_like(message: types.Message):
                     response = await client.post(url, data=payload, headers=headers, timeout=30)
                     
                     if response.status_code == 200:
-                        # Attempt to decrypt the response to see if the server rejected the like internally
                         try:
                             from Crypto.Cipher import AES
                             cipher = AES.new(MAIN_KEY, AES.MODE_CBC, MAIN_IV)
                             decrypted = cipher.decrypt(response.content)
-                            # A successful like usually has a very small/empty protobuf payload (e.g. just a 0 code)
-                            # If it contains text, it's often an error message
                             dec_str = str(decrypted)
+                            # ALWAYS save the first decrypted response for debugging
+                            if not first_error:
+                                first_error = f"DEBUG RESPONSE: {dec_str[:200]}"
+                                
                             if "error" in dec_str.lower() or "level" in dec_str.lower():
                                 err_msg = f"Server Rejected Like: {dec_str[:100]}"
                                 print(err_msg)
-                                if not first_error:
-                                    first_error = err_msg
                             else:
                                 success_count += 1
                         except Exception as e:
-                            # If decryption fails, assume success like the old code
                             success_count += 1
+                            if not first_error:
+                                first_error = f"DECRYPT FAIL: {e}"
                     else:
                         err_msg = f"HTTP {response.status_code} - {response.text}"
                         print(f"Error liking with {guest_uid}: {err_msg}")
