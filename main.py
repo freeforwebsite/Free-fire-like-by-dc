@@ -21,11 +21,11 @@ async def root():
 # --- GARENA AUTHENTICATION SUB-ENGINE ---
 class GarenaClient:
     async def get_account_token(self, uid, password):
-        """Get access token for a specific account using your specific credentials format"""
+        """Get access token for a specific account"""
         try:
-            url = "https://garena.com"
+            url = "https://100067.connect.garena.com/oauth/guest/token/grant"
             headers = {
-                "Host": "://garena.com",
+                "Host": "100067.connect.garena.com",
                 "User-Agent": await Ua(),
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Accept-Encoding": "gzip, deflate, br",
