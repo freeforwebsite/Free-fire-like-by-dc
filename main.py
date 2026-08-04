@@ -8,7 +8,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 import uvicorn
 
-from get_jwt import create_jwt
+from get_jwt import create_jwt, MAIN_KEY, MAIN_IV
 from encrypt_like_body import create_like_payload
 
 # --- FASTAPI ENVIRONMENT (Required to pass Render Web Service Health Checks) ---
@@ -121,10 +121,28 @@ async def cmd_like(message: types.Message):
                 }
 
                 async with httpx.AsyncClient() as client:
-                    url = f"{BASE_URL}/LikeProfile"
+                    url = f"{server_url_from_jwt}/LikeProfile"
                     response = await client.post(url, data=payload, headers=headers, timeout=30)
+                    
                     if response.status_code == 200:
-                        success_count += 1
+                        # Attempt to decrypt the response to see if the server rejected the like internally
+                        try:
+                            from Crypto.Cipher import AES
+                            cipher = AES.new(MAIN_KEY, AES.MODE_CBC, MAIN_IV)
+                            decrypted = cipher.decrypt(response.content)
+                            # A successful like usually has a very small/empty protobuf payload (e.g. just a 0 code)
+                            # If it contains text, it's often an error message
+                            dec_str = str(decrypted)
+                            if "error" in dec_str.lower() or "level" in dec_str.lower():
+                                err_msg = f"Server Rejected Like: {dec_str[:100]}"
+                                print(err_msg)
+                                if not first_error:
+                                    first_error = err_msg
+                            else:
+                                success_count += 1
+                        except Exception as e:
+                            # If decryption fails, assume success like the old code
+                            success_count += 1
                     else:
                         err_msg = f"HTTP {response.status_code} - {response.text}"
                         print(f"Error liking with {guest_uid}: {err_msg}")
