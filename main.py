@@ -161,22 +161,39 @@ async def cmd_like(message: types.Message):
 
 @dp.message(Command("check"))
 async def cmd_check(message: types.Message):
-    if not ACCOUNT_POOL:
-        await message.reply("❌ **No accounts found in database!**")
+    args = message.text.split()
+    accounts_to_test = []
+    
+    if len(args) == 1:
+        if not ACCOUNT_POOL:
+            await message.reply("❌ **No accounts found in database!**")
+            return
+        await message.reply("🔍 **Scanning first 5 accounts for ban status...**")
+        accounts_to_test = ACCOUNT_POOL[:5]
+    elif len(args) == 2:
+        uid_to_find = args[1].strip()
+        found_acc = next((acc for acc in ACCOUNT_POOL if acc["uid"] == uid_to_find), None)
+        if not found_acc:
+            await message.reply(f"❌ UID `{uid_to_find}` not found in accounts database.")
+            return
+        await message.reply(f"🔍 **Checking specific account: `{uid_to_find}`...**")
+        accounts_to_test = [found_acc]
+    elif len(args) == 3:
+        uid = args[1].strip()
+        pwd = args[2].strip()
+        await message.reply(f"🔍 **Checking provided account: `{uid}`...**")
+        accounts_to_test = [{"uid": uid, "password": pwd}]
+    else:
+        await message.reply("❌ **Invalid Syntax.** Usage: `/check` OR `/check <uid>` OR `/check <uid> <password>`")
         return
         
-    await message.reply("🔍 **Scanning first 5 accounts for ban status...**")
-    
     results = []
-    accounts_to_test = ACCOUNT_POOL[:5]
     
     for idx, acc in enumerate(accounts_to_test, 1):
         uid = acc["uid"]
         pwd = acc["password"]
         
         try:
-            # We call create_jwt. If it succeeds, the account is valid.
-            # If it fails, we catch the exception and look for queueInfo
             token, lock_region, server_url = await create_jwt(uid, pwd)
             results.append(f"✅ {idx}. `{uid}`: Working!")
         except Exception as e:
@@ -190,7 +207,7 @@ async def cmd_check(message: types.Message):
                 
         await asyncio.sleep(0.5)
         
-    final_report = "📊 **Account Health Check (Top 5):**\n\n" + "\n".join(results)
+    final_report = "📊 **Account Health Check:**\n\n" + "\n".join(results)
     await message.reply(final_report)
 
 # --- CONCURRENT THREAD CONTROLLER ---
