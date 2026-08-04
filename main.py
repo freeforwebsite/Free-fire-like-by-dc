@@ -170,7 +170,7 @@ async def cmd_like(message: types.Message):
             f"Target Player Profile: `{target_uid}`\n"
             f"Total Likes Sent: `{success_count}/{total_attempted}`"
         )
-        if first_error and success_count == 0:
+        if first_error:
             final_text += f"\n\n⚠️ **Error Example:** `{first_error}`"
             
         await progress_msg.edit_text(final_text)
