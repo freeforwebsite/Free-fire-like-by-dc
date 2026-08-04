@@ -121,7 +121,7 @@ async def cmd_like(message: types.Message):
                 }
 
                 async with httpx.AsyncClient() as client:
-                    url = f"{server_url_from_jwt}/LikeProfile"
+                    url = f"{BASE_URL}/LikeProfile"
                     response = await client.post(url, data=payload, headers=headers, timeout=30)
                     
                     if response.status_code == 200:
