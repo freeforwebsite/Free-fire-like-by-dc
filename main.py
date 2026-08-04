@@ -90,6 +90,7 @@ async def cmd_like(message: types.Message):
     progress_msg = await message.reply(f"⏳ **Processing Engine Initialization:** Spinning up HTTP clients for Target UID: `{target_uid}` on region `{region}`...")
 
     success_count = 0
+    first_error = None
     BASE_URL = get_base_url(region)
     
     # Cap to 100 max likes per run to respect FF limits and avoid blocking telegram handler indefinitely
@@ -124,9 +125,16 @@ async def cmd_like(message: types.Message):
                     response = await client.post(url, data=payload, headers=headers, timeout=30)
                     if response.status_code == 200:
                         success_count += 1
+                    else:
+                        err_msg = f"HTTP {response.status_code} - {response.text}"
+                        print(f"Error liking with {guest_uid}: {err_msg}")
+                        if not first_error:
+                            first_error = err_msg
                         
         except Exception as e:
             print(f"Error liking with {guest_uid}: {e}")
+            if not first_error:
+                first_error = str(e)
             
         # UI Updates to provide command tracking without over-flooding Telegram threshold limits
         if (index + 1) % 10 == 0:
@@ -139,11 +147,15 @@ async def cmd_like(message: types.Message):
         await asyncio.sleep(0.5)
 
     try:
-        await progress_msg.edit_text(
+        final_text = (
             f"🏁 **Streaming Pipeline Terminated!**\n\n"
             f"Target Player Profile: `{target_uid}`\n"
             f"Total Likes Sent: `{success_count}/{total_attempted}`"
         )
+        if first_error and success_count == 0:
+            final_text += f"\n\n⚠️ **Error Example:** `{first_error}`"
+            
+        await progress_msg.edit_text(final_text)
     except Exception:
         pass
 
