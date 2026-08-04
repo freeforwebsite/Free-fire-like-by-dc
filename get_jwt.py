@@ -100,7 +100,7 @@ async def create_jwt(uid: int, password: str) -> Tuple[str, str, str]:
         serverUrl = message.get("serverUrl", "0")
         
         if token == "0":
-            raise ValueError("Failed to obtain JWT.")
+            raise ValueError(f"Failed to obtain JWT. Response: {json.dumps(message)}")
             
         return token, region, serverUrl
 
