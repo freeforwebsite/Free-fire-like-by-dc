@@ -201,8 +201,11 @@ async def cmd_like(message: types.Message):
             pass
 
         likes_given = final_likes - initial_likes
-        if likes_given <= 0:
-            likes_given = success_count  # Fallback if fetching failed or didn't update yet
+        if final_likes == 0 and initial_likes > 0:
+            # Only fallback if final_likes failed to fetch completely
+            likes_given = success_count  
+        elif likes_given < 0:
+            likes_given = 0
 
         final_text = (
             f"✅ **LIKES SENT SUCCESSFULLY** ✅\n"
