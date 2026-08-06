@@ -10,6 +10,7 @@ import uvicorn
 
 from get_jwt import create_jwt, MAIN_KEY, MAIN_IV
 from encrypt_like_body import create_like_payload
+from get_info import get_account_info
 
 # --- FASTAPI ENVIRONMENT (Required to pass Render Web Service Health Checks) ---
 app = FastAPI()
@@ -95,6 +96,18 @@ async def cmd_like(message: types.Message):
 
     progress_msg = await message.reply(f"⏳ **Processing Engine Initialization:** Spinning up HTTP clients for Target UID: `{target_uid}` on region `{region}`...")
 
+    initial_likes = 0
+    nickname = "Unknown"
+    
+    try:
+        # Try fetching initial info using the first account
+        initial_data = await get_account_info(target_uid, ACCOUNT_POOL[0])
+        basic = initial_data.get("basicInfo", {})
+        initial_likes = basic.get("liked", 0)
+        nickname = basic.get("nickname", "Unknown")
+    except Exception as e:
+        print(f"Could not fetch initial info: {e}")
+
     success_count = 0
     first_error = None
     BASE_URL = get_base_url(region)
@@ -178,19 +191,37 @@ async def cmd_like(message: types.Message):
         await asyncio.sleep(0.5)
 
     try:
+        final_likes = initial_likes
+        try:
+            # Fetch final info to get updated likes
+            final_data = await get_account_info(target_uid, ACCOUNT_POOL[0])
+            basic = final_data.get("basicInfo", {})
+            final_likes = basic.get("liked", initial_likes)
+        except Exception:
+            pass
+
+        likes_given = final_likes - initial_likes
+        if likes_given <= 0:
+            likes_given = success_count  # Fallback if fetching failed or didn't update yet
+
         final_text = (
-            f"🏁 **Streaming Pipeline Terminated!**\n\n"
-            f"Target Player Profile: `{target_uid}`\n"
-            f"Total Likes Sent: `{success_count}/{total_attempted}`"
+            f"✅ **LIKES SENT SUCCESSFULLY** ✅\n"
+            f"───────────────────────────\n"
+            f"💎 Username : {nickname}\n\n"
+            f"» Player: {nickname}\n"
+            f"» UID: `{target_uid}`\n"
+            f"» Region: {region}\n"
+            f"» Likes Before: {initial_likes:,}\n"
+            f"» Likes After: {final_likes:,}\n"
+            f"» Likes Given: {likes_given:,}"
         )
+        
         if first_error:
-            final_text += f"\n\n⚠️ **Error Example:** `{first_error}`"
+            final_text += f"\n\n⚠️ **Debug Info:** `{first_error[:100]}`"
             
         await progress_msg.edit_text(final_text)
     except Exception:
         pass
-
-from get_info import get_account_info
 
 @dp.message(Command("info"))
 async def cmd_info(message: types.Message):
