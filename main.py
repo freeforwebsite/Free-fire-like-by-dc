@@ -211,7 +211,7 @@ async def cmd_info(message: types.Message):
     guest = ACCOUNT_POOL[0]
     
     try:
-        data = await get_account_info(target_uid, guest["uid"], guest["password"])
+        data = await get_account_info(target_uid, guest)
         
         # Extract basic info
         basic = data.get("basicInfo", {})
@@ -270,11 +270,14 @@ async def cmd_check(message: types.Message):
     
     for idx, acc in enumerate(accounts_to_test, 1):
         uid = acc["uid"]
-        pwd = acc["password"]
         
         try:
-            token, lock_region, server_url = await create_jwt(uid, pwd)
-            results.append(f"✅ {idx}. `{uid}`: Working!")
+            if "token" in acc:
+                results.append(f"✅ {idx}. `{uid}`: Working! (Raw JWT Token)")
+            else:
+                pwd = acc.get("password")
+                token, lock_region, server_url = await create_jwt(uid, pwd)
+                results.append(f"✅ {idx}. `{uid}`: Working!")
         except Exception as e:
             err_str = str(e)
             if "queueInfo" in err_str:

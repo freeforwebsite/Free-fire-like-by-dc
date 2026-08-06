@@ -5,12 +5,16 @@ from google.protobuf import json_format
 from ff_proto import core_pb2, account_show_pb2, freefire_pb2
 from get_jwt import create_jwt, json_to_proto, aes_cbc_encrypt, decode_protobuf, MAIN_KEY, MAIN_IV, RELEASEVERSION, USERAGENT
 
-async def get_account_info(target_uid: str, guest_uid: str, guest_password: str) -> dict:
+async def get_account_info(target_uid: str, guest: dict) -> dict:
     """
-    Fetches the profile info of a target_uid using a valid guest account for authentication.
+    Fetches the profile info of a target_uid using a valid guest account (or token) for authentication.
     """
-    # 1. Get JWT from a working guest account
-    token, region, server_url = await create_jwt(guest_uid, guest_password)
+    if "token" in guest:
+        token = guest["token"]
+        # Default to IND server if we are bypassing the JWT extraction flow
+        server_url = "https://client.ind.freefiremobile.com"
+    else:
+        token, region, server_url = await create_jwt(guest["uid"], guest.get("password"))
     
     # 2. Fetch target profile
     json_data = json.dumps({
