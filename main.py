@@ -39,13 +39,19 @@ def load_garena_accounts():
         with open(file_path, "r") as file:
             accounts_data = json.load(file)
             for item in accounts_data:
-                uid = item.get("uid")
+                uid = item.get("uid", "")
                 password = item.get("password")
-                if uid and password:
-                    accounts.append({
-                        "uid": str(uid).strip(), 
-                        "password": str(password).strip()
-                    })
+                token = item.get("token")
+                
+                # We can load it if it has a token OR a password
+                if uid and (password or token):
+                    acc_obj = {"uid": str(uid).strip()}
+                    if token:
+                        acc_obj["token"] = str(token).strip()
+                    if password:
+                        acc_obj["password"] = str(password).strip()
+                    accounts.append(acc_obj)
+                    
         print(f"✅ Micro-database loaded successfully: {len(accounts)} accounts found.")
         return accounts
     except Exception as e:
@@ -100,9 +106,16 @@ async def cmd_like(message: types.Message):
     # --- AUTOMATED DATABASE TRAVERSAL ---
     for index, account in enumerate(accounts_to_use):
         guest_uid = account["uid"]
-        guest_pass = account["password"]
         try:
-            jwt, region_from_jwt, server_url_from_jwt = await create_jwt(guest_uid, guest_pass)
+            if "token" in account:
+                jwt = account["token"]
+                # If they provide a direct token, we don't extract the region from the JWT flow.
+                # We assume the region is the same as the target region they specified.
+                region_from_jwt = region 
+            else:
+                guest_pass = account.get("password")
+                jwt, region_from_jwt, server_url_from_jwt = await create_jwt(guest_uid, guest_pass)
+                
             if jwt:
                 payload = create_like_payload(target_uid, region_from_jwt)
                 if isinstance(payload, str):
